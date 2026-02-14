@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Mania - Official Store</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <style>
+        /* --- LIGHT THEME VARIABLES --- */
+        :root {
+            --bg-color: #ffffff;
+            --card-bg: #f8f9fa;
+            --text-main: #333333;
+            --text-light: #666666;
+            --primary-blue: #007bff;
+            --accent-blue: #0056b3;
+            --star-gold: #ffc107;
+            
+            --header-height: 60px;
+            --bottom-nav-height: 65px;
+        }
+
+        * { box-sizing: border-box; font-family: 'Poppins', sans-serif; color: var(--text-main); }
+        
+        body { 
+            margin: 0; padding: 0; min-height: 100vh; 
+            padding-top: var(--header-height); padding-bottom: var(--bottom-nav-height); 
+            background-color: var(--bg-color);
+            overflow-x: hidden;
+        }
+
+        /* --- UI COMPONENTS --- */
+        h1, h2, h3 { margin-top: 0; font-weight: 600; }
+        .primary-text { color: var(--primary-blue); }
+        
+        .card-box { 
+            background: var(--card-bg);
+            border: 1px solid #e9ecef;
+            border-radius: 12px; 
+            padding: 20px; 
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); 
+            margin: 15px auto; width: 100%; max-width: 900px;
+            position: relative; z-index: 10;
+        }
+
+        input, textarea { 
+            width: 100%; padding: 12px; margin-bottom: 15px; 
+            background: #fff; border: 1px solid #ddd; 
+            border-radius: 8px; font-size: 16px; outline: none;
+        }
+        input:focus, textarea:focus { border-color: var(--primary-blue); box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
+
+        /* Buttons */
+        .btn-primary { 
+            background-color: var(--primary-blue); 
+            border: none; color: white; padding: 12px 25px; border-radius: 50px; 
+            cursor: pointer; font-weight: 600; transition: 0.2s; 
+            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
+            width: 100%; display: block; text-align: center; text-decoration: none;
+        }
+        .btn-primary:hover { background-color: var(--accent-blue); transform: translateY(-2px); }
+
+        .btn-secondary {
+            background: #e2e6ea; color: #333; border: none; padding: 10px 20px; border-radius: 50px; cursor: pointer;
+        }
+
+        /* --- HEADER --- */
+        header { 
+            position: fixed; top: 0; left: 0; width: 100%; height: var(--header-height); 
+            z-index: 1000; display: flex; align-items: center; justify-content: space-between; 
+            padding: 0 20px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        header h1 { margin: 0; font-size: 1.4em; color: var(--primary-blue); }
+        .menu-icon { font-size: 28px; cursor: pointer; color: #333; }
+
+        /* --- SIDE MENU --- */
+        #side-menu { 
+            height: 100%; width: 0; position: fixed; z-index: 1001; top: 0; right: 0; 
+            background: #fff; overflow-x: hidden; transition: 0.3s; padding-top: 60px; 
+            box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+        }
+        #side-menu a { padding: 15px 30px; text-decoration: none; font-size: 16px; display: block; color: #333; border-bottom: 1px solid #f0f0f0; }
+
+        /* --- CONTENT GRID --- */
+        .content-grid { 
+            padding: 10px 0; display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
+            gap: 15px; max-width: 1400px; margin: 0 auto; z-index: 10; position: relative; 
+        }
+
+        .app-card { 
+            display: flex; flex-direction: column; align-items: center; text-align: center; 
+            padding: 15px; background: #fff; border-radius: 12px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: 0.2s; cursor: pointer; 
+            border: 1px solid #f0f0f0;
+        }
+        .app-card:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
+        .app-card img { width: 70px; height: 70px; border-radius: 14px; object-fit: cover; margin-bottom: 10px; }
+        .app-card h3 { font-size: 0.9em; margin: 5px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+        
+        .badge { font-size: 0.7em; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        .badge-pre { color: #856404; background-color: #fff3cd; }
+        .badge-soon { color: #721c24; background-color: #f8d7da; }
+
+        /* --- DETAIL VIEW --- */
+        .tab-view { display: none; padding: 10px 15px; padding-bottom: 80px; max-width: 1400px; margin: 0 auto; position: relative; z-index: 5; }
+        .tab-view.active { display: block; }
+
+        .detail-header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+        .detail-header img { width: 90px; height: 90px; border-radius: 18px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        
+        /* ACTION BUTTONS */
+        .action-btn { width: 100%; padding: 15px; font-size: 1em; border-radius: 50px; margin-top: 15px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        
+        .btn-live { background: var(--primary-blue); color: #fff; box-shadow: 0 4px 15px rgba(0,123,255,0.4); }
+        .btn-pre { background: #ffc107; color: #000; box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4); }
+        .btn-registered { background: transparent; border: 2px solid #ffc107; color: #ffc107; }
+        .btn-soon { background: #e9ecef; color: #6c757d; cursor: not-allowed; }
+
+        /* RATINGS */
+        .rating-stars { color: #ddd; font-size: 1.2em; }
+        .rating-stars .filled { color: var(--star-gold); }
+        .star-clickable { cursor: pointer; transition: transform 0.2s; }
+        .star-clickable:hover { transform: scale(1.2); }
+
+        /* REVIEWS */
+        .review-item { border-bottom: 1px solid #eee; padding: 15px 0; }
+        .review-header { display: flex; justify-content: space-between; font-size: 0.9em; margin-bottom: 5px; }
+        .review-user { font-weight: 600; }
+        .review-text { color: #555; font-size: 0.95em; line-height: 1.4; }
+
+        .back-button { position: fixed; top: 10px; left: 15px; z-index: 1002; background: #fff; border: 1px solid #ddd; color: #333; border-radius: 50%; width: 40px; height: 40px; font-size: 1.5em; cursor: pointer; display: none; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        /* --- POPUPS --- */
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; backdrop-filter: blur(3px); }
+        .modal-content { 
+            background: #fff; padding: 25px; border-radius: 15px; width: 90%; max-width: 400px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: slideUp 0.3s ease; text-align: center;
+        }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        /* --- BOTTOM NAV --- */
+        #bottom-nav { 
+            position: fixed; bottom: 0; left: 0; width: 100%; height: var(--bottom-nav-height); 
+            background: #fff; border-top: 1px solid #eee;
+            display: flex; justify-content: space-around; align-items: center; z-index: 1010; 
+        }
+        .nav-item { display: flex; flex-direction: column; align-items: center; text-decoration: none; color: #999; font-size: 0.75em; cursor: pointer; padding: 5px 0; flex: 1; }
+        .nav-item.active { color: var(--primary-blue); }
+        .nav-item i { font-style: normal; font-size: 22px; margin-bottom: 2px; }
+
+    </style>
+</head>
+<body>
+
+    <div id="live-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="color: var(--primary-blue); margin-bottom: 10px;">IT'S LIVE! 🎉</h3>
+            <img id="live-popup-img" src="" style="width:80px; height:80px; border-radius:15px; margin-bottom:10px;">
+            <h4 id="live-popup-title" style="margin: 5px 0;">App Name</h4>
+            <p style="font-size: 0.9em; color:#666;">You pre-registered for this item. It is now available to download.</p>
+            <div style="margin-top: 20px;">
+                <button class="btn-primary" onclick="closeLiveModal(true)">Download Now</button>
+                <button class="btn-secondary" style="margin-top:10px; background:transparent;" onclick="closeLiveModal(false)">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="review-modal" class="modal">
+        <div class="modal-content" style="text-align: left;">
+            <h3 class="primary-text">Rate & Review</h3>
+            <p id="modal-rating-text" style="font-weight:bold;">Rating: 0 Stars</p>
+            <textarea id="modal-review-input" rows="4" placeholder="Write your experience..."></textarea>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+                <button class="btn-secondary" onclick="closeReviewModal()">Cancel</button>
+                <button class="btn-primary" style="width:auto;" onclick="submitReview()">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-wrapper">
+        <button id="back-btn" class="back-button" onclick="goBackToListView()">&#x2190;</button>
+
+        <header>
+            <h1 id="main-header-title">App Mania</h1>
+            <span class="menu-icon" onclick="toggleNav()">&#9776;</span>
+        </header>
+
+        <div id="side-menu">
+            <a href="javascript:void(0)" onclick="closeNav()" style="font-size: 30px; text-align: right;">&times;</a>
+            <a href="#" onclick="showAppView('all')">Home</a>
+            <a href="#" onclick="showAppView('profile')">Profile</a>
+            <a href="#" onclick="logoutUser()" style="color: red;">Logout</a>
+        </div>
+
+        <div id="tab-views-container">
+            <div id="all-view" class="tab-view active">
+                <h2 class="primary-text">Discover</h2>
+                <div id="all-grid" class="content-grid"></div>
+            </div>
+            <div id="games-view" class="tab-view">
+                <h2 class="primary-text">Games</h2>
+                <div id="games-grid" class="content-grid"></div>
+            </div>
+            <div id="apps-view" class="tab-view">
+                <h2 class="primary-text">Apps</h2>
+                <div id="apps-grid" class="content-grid"></div>
+            </div>
+            <div id="search-view" class="tab-view">
+                <h2 class="primary-text">Search</h2>
+                <input type="text" id="search-input" placeholder="Search apps..." oninput="renderSearchItems()">
+                <div id="search-results-grid" class="content-grid"></div>
+            </div>
+
+            <div id="profile-view" class="tab-view">
+                <div class="card-box">
+                    <h2 class="primary-text">Profile</h2>
+                    <form id="profile-form">
+                        <label>Name</label>
+                        <input type="text" id="profile-name" required>
+                        <label>Email</label>
+                        <input type="email" id="profile-email" readonly>
+                        <button type="submit" class="btn-primary">Save Profile</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="item-detail-view" class="tab-view">
+                <div class="card-box">
+                    <div class="detail-header">
+                        <img id="detail-logo" src="" alt="Logo">
+                        <div class="detail-info">
+                            <h2 id="detail-title" style="margin-bottom: 5px;">Title</h2>
+                            <small id="detail-type" style="color: #888;">Type</small>
+                            <div class="rating-stars" id="detail-stars-display" style="font-size: 1em; margin-top: 5px;"></div>
+                        </div>
+                    </div>
+                    
+                    <button id="action-btn" class="action-btn">Loading...</button>
+
+                    <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #eee;">
+                        <h3 class="primary-text">About</h3>
+                        <p id="detail-description" style="line-height: 1.6; color: #555;"></p>
+                    </div>
+
+                    <div style="margin-top: 25px; background: #f1f3f5; padding: 15px; border-radius: 10px;">
+                        <h3 style="margin-bottom: 5px;">Rate this App</h3>
+                        <p style="font-size: 0.8em; margin-top:0;">Tap a star to rate</p>
+                        <div id="detail-rate-input-area" class="rating-stars" style="font-size: 2em; letter-spacing: 5px;"></div>
+                    </div>
+
+                    <div style="margin-top: 25px;">
+                        <h3>Reviews</h3>
+                        <div id="reviews-list-container">Loading reviews...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="bottom-nav">
+        <a class="nav-item active" id="nav-all" onclick="showAppView('all')"><i>🏠</i>Home</a>
+        <a class="nav-item" id="nav-games" onclick="showAppView('games')"><i>🎮</i>Games</a>
+        <a class="nav-item" id="nav-apps" onclick="showAppView('apps')"><i>📱</i>Apps</a>
+        <a class="nav-item" id="nav-search" onclick="showAppView('search')"><i>🔍</i>Search</a>
+    </div>
+
+    <script>
+        // --- 1. FIREBASE CONFIG ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBqrAnfkLx4a4BDsCNbBGa4tyuuhNt_vKI",
+            authDomain: "app-store-11766.firebaseapp.com",
+            databaseURL: "https://app-store-11766-default-rtdb.firebaseio.com",
+            projectId: "app-store-11766",
+            storageBucket: "app-store-11766.firebasestorage.app",
+            messagingSenderId: "586580275943",
+            appId: "1:586580275943:web:6005f1b4907b548666e842"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let allItems = [];
+        let currentLiveItem = null;
+        let pendingRating = 0;
+        let pendingItemId = null;
+
+        if(!localStorage.getItem('userName')) {
+            localStorage.setItem('userName', 'User_' + Math.floor(Math.random()*1000));
+            localStorage.setItem('userEmail', 'guest@appmania.com');
+        }
+
+        // --- 2. DOWNLOAD HELPER ---
+        // Function to force download of the file in the same directory
+        function triggerDownload(filename) {
+            const link = document.createElement('a');
+            link.href = filename; // Assumes file is in the same root folder (e.g., "1.apk")
+            link.download = filename; // Forces browser to download instead of open
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // --- 3. DATA & LOGIC ---
+        db.ref('items').on('value', snapshot => {
+            const data = snapshot.val();
+            allItems = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+            
+            const activeId = document.querySelector('.tab-view.active').id;
+            if(activeId.includes('all')) renderItems('All', 'all-grid');
+            if(activeId.includes('games')) renderItems('Game', 'games-grid');
+            if(activeId.includes('apps')) renderItems('App', 'apps-grid');
+            
+            allItems.forEach(item => {
+                const isRegistered = localStorage.getItem(`prereg_${item.id}`) === 'true';
+                const hasSeen = localStorage.getItem(`seen_live_${item.id}`) === 'true';
+                if (isRegistered && !hasSeen && item.status !== 'coming_soon' && item.status !== 'pre_register') {
+                    showLivePopup(item);
+                }
+            });
+        });
+
+        function showLivePopup(item) {
+            currentLiveItem = item;
+            document.getElementById('live-popup-img').src = item.logoUrl;
+            document.getElementById('live-popup-title').textContent = item.title;
+            document.getElementById('live-modal').style.display = 'flex';
+            localStorage.setItem(`seen_live_${item.id}`, 'true');
+        }
+        
+        window.closeLiveModal = (download) => {
+            document.getElementById('live-modal').style.display = 'none';
+            if(download && currentLiveItem) {
+                showItemDetail(currentLiveItem.id);
+                // Trigger download immediately
+                triggerDownload(currentLiveItem.downloadLink);
+            }
+        };
+
+        window.toggleNav = () => document.getElementById('side-menu').style.width = document.getElementById('side-menu').style.width === '250px' ? '0' : '250px';
+        window.closeNav = () => document.getElementById('side-menu').style.width = '0';
+
+        let currentList = 'all';
+        window.showAppView = (view) => {
+            document.querySelectorAll('.tab-view').forEach(e => e.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+            document.getElementById(`${view}-view`).classList.add('active');
+            
+            if(view === 'item-detail') {
+                document.getElementById('back-btn').style.display = 'block';
+                document.getElementById('bottom-nav').style.display = 'none';
+            } else {
+                document.getElementById('back-btn').style.display = 'none';
+                document.getElementById('bottom-nav').style.display = 'flex';
+                if(['all','games','apps','search'].includes(view)) {
+                    currentList = view;
+                    document.getElementById(`nav-${view}`).classList.add('active');
+                    if(view === 'all') renderItems('All', 'all-grid');
+                    if(view === 'games') renderItems('Game', 'games-grid');
+                    if(view === 'apps') renderItems('App', 'apps-grid');
+                    if(view === 'profile') {
+                        document.getElementById('profile-name').value = localStorage.getItem('userName');
+                        document.getElementById('profile-email').value = localStorage.getItem('userEmail');
+                    }
+                }
+            }
+            closeNav();
+        };
+        window.goBackToListView = () => showAppView(currentList);
+
+        function renderItems(type, gridId) {
+            const grid = document.getElementById(gridId);
+            grid.innerHTML = '';
+            const list = type === 'All' ? allItems : allItems.filter(i => i.type === type);
+            
+            list.forEach(item => {
+                let badge = '';
+                if(item.status === 'pre_register') badge = '<span class="badge badge-pre">PRE-REG</span>';
+                if(item.status === 'coming_soon' || item.downloadLink === 'COMING_SOON') badge = '<span class="badge badge-soon">SOON</span>';
+                
+                grid.innerHTML += `
+                <div class="app-card" onclick="showItemDetail('${item.id}')">
+                    <img src="${item.logoUrl}">
+                    <h3>${item.title}</h3>
+                    ${badge}
+                    <div style="font-size:0.8em; color:#fbbc05;">${getStarHTML(item.ratings, false)}</div>
+                </div>`;
+            });
+        }
+
+        window.showItemDetail = (id) => {
+            const item = allItems.find(i => i.id === id);
+            if(!item) return;
+
+            document.getElementById('detail-logo').src = item.logoUrl;
+            document.getElementById('detail-title').textContent = item.title;
+            document.getElementById('detail-type').textContent = item.type;
+            document.getElementById('detail-description').textContent = item.description || "No description available.";
+            
+            document.getElementById('detail-stars-display').innerHTML = getStarHTML(item.ratings, false);
+            renderInteractiveStars(id, item.ratings);
+            loadReviews(id);
+
+            const btn = document.getElementById('action-btn');
+            btn.onclick = null; 
+            btn.className = 'action-btn';
+
+            if(item.status === 'coming_soon' || item.downloadLink === 'COMING_SOON') {
+                btn.textContent = "Coming Soon";
+                btn.classList.add('btn-soon');
+            } else if(item.status === 'pre_register') {
+                if(localStorage.getItem(`prereg_${id}`) === 'true') {
+                    btn.textContent = "✓ Pre-registered";
+                    btn.classList.add('btn-registered');
+                    btn.onclick = () => { if(confirm("Cancel pre-registration?")) { localStorage.removeItem(`prereg_${id}`); showItemDetail(id); } };
+                } else {
+                    btn.textContent = "Pre-register";
+                    btn.classList.add('btn-pre');
+                    btn.onclick = () => { 
+                        // Just save preference, don't download yet
+                        localStorage.setItem(`prereg_${id}`, 'true'); 
+                        showItemDetail(id);
+                        alert("You are now pre-registered! We will notify you when it's live.");
+                    };
+                }
+            } else {
+                // --- LIVE STATUS ---
+                btn.textContent = "Download";
+                btn.classList.add('btn-primary');
+                // New Download Logic: Triggers direct file download
+                btn.onclick = () => triggerDownload(item.downloadLink);
+            }
+
+            showAppView('item-detail');
+        };
+
+        function getStarHTML(ratings, isInteractive) {
+            const avg = (ratings && ratings.count > 0) ? (ratings.total / ratings.count) : 0;
+            let html = '';
+            for(let i=1; i<=5; i++) {
+                const cls = i <= Math.round(avg) ? 'filled' : '';
+                html += `<span class="${cls}">★</span>`;
+            }
+            if(!isInteractive && ratings) html += ` <span style="font-size:0.8em; color:#999;">(${ratings.count})</span>`;
+            return html;
+        }
+
+        function renderInteractiveStars(itemId, ratings) {
+            const container = document.getElementById('detail-rate-input-area');
+            const hasRated = localStorage.getItem(`rated_${itemId}`);
+            
+            if(hasRated) {
+                container.innerHTML = `<span style="font-size:0.6em; color:green;">You have already rated this app.</span>`;
+                return;
+            }
+
+            let html = '';
+            for(let i=1; i<=5; i++) {
+                html += `<span class="star-clickable" style="color:#ddd;" onclick="openReviewModal(${i}, '${itemId}')">★</span>`;
+            }
+            container.innerHTML = html;
+        }
+
+        window.openReviewModal = (stars, itemId) => {
+            pendingRating = stars;
+            pendingItemId = itemId;
+            document.getElementById('modal-rating-text').textContent = `You selected: ${stars} Stars`;
+            document.getElementById('review-modal').style.display = 'flex';
+        };
+
+        window.closeReviewModal = () => document.getElementById('review-modal').style.display = 'none';
+
+        window.submitReview = () => {
+            const text = document.getElementById('modal-review-input').value;
+            if(!pendingItemId) return;
+            const ref = db.ref(`items/${pendingItemId}/ratings`);
+            ref.transaction(curr => {
+                if(!curr) return { count: 1, total: pendingRating };
+                return { count: curr.count + 1, total: curr.total + pendingRating };
+            }, (err, committed) => {
+                if(committed) {
+                    db.ref(`reviews/${pendingItemId}`).push({
+                        user: localStorage.getItem('userName'),
+                        rating: pendingRating,
+                        text: text,
+                        timestamp: Date.now()
+                    });
+                    localStorage.setItem(`rated_${pendingItemId}`, 'true');
+                    alert("Review Submitted!");
+                    closeReviewModal();
+                    showItemDetail(pendingItemId);
+                }
+            });
+        };
+
+        function loadReviews(itemId) {
+            const div = document.getElementById('reviews-list-container');
+            div.innerHTML = 'Loading...';
+            db.ref(`reviews/${itemId}`).once('value', snapshot => {
+                const revs = snapshot.val();
+                div.innerHTML = '';
+                if(!revs) { div.innerHTML = '<p style="color:#999; font-style:italic;">No reviews yet.</p>'; return; }
+                Object.values(revs).reverse().forEach(r => {
+                    let starStr = '';
+                    for(let i=0; i<5; i++) starStr += i<r.rating ? '★' : '☆';
+                    div.innerHTML += `
+                    <div class="review-item">
+                        <div class="review-header">
+                            <span class="review-user">${r.user}</span>
+                            <span style="color:#ffc107;">${starStr}</span>
+                        </div>
+                        <div class="review-text">${r.text}</div>
+                    </div>`;
+                });
+            });
+        }
+        
+        window.renderSearchItems = () => {
+            const term = document.getElementById('search-input').value.toLowerCase();
+            const grid = document.getElementById('search-results-grid');
+            grid.innerHTML = '';
+            if(term.length < 2) return;
+            const matches = allItems.filter(i => i.title.toLowerCase().includes(term));
+            matches.forEach(item => { 
+                 grid.innerHTML += `<div class="app-card" onclick="showItemDetail('${item.id}')"><img src="${item.logoUrl}"><h3>${item.title}</h3></div>`;
+            });
+        }
+        
+        showAppView('all');
+    </script>
+</body>
+</html>
